@@ -14,5 +14,5 @@
 ## Extras
 
 - Ferramenta de exploração de discos: [Hexed](https://hexed.it/)
-- [Maverick FAT16](http://www.maverick-os.dk/FileSystemFormats/FAT16_FileSystem.html)
-- [Phobos FAT16](https://www.tavi.co.uk/phobos/fat.html)
+- [Informações sobre FAT16](http://www.maverick-os.dk/FileSystemFormats/FAT16_FileSystem.html)
+- [Informações sobre FAT](https://www.tavi.co.uk/phobos/fat.html)
