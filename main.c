@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 // Garante o alinhamento de 1 byte para as estruturas (Packed) em C puro
 #pragma pack(push, 1)
@@ -259,11 +260,7 @@ void display_file_attributes(FAT16_Context *ctx) {
             printf("\nAtributos de '%s':\n", target_name);
             
             // 1. Tipo do Arquivo
-            if (entry.attributes & ATTR_DIRECTORY) {
-                printf("  Tipo do Arquivo:   Diretório (<DIR>)\n");
-            } else {
-                printf("  Tipo do Arquivo:   Arquivo de Dados / Comum\n");
-            }
+            printf("  Tipo do Arquivo:   %s\n", entry.ext);
 
             // 2. Atributos da FAT
             printf("  Somente Leitura:   %s\n", (entry.attributes & ATTR_READ_ONLY) ? "SIM" : "NÃO");
@@ -341,7 +338,7 @@ void insert_file(FAT16_Context *ctx) {
     long target_entry_offset = -1;
     int i;
 
-    printf("Digite o caminho do arquivo externo a ser injetado: ");
+    printf("Digite o caminho do arquivo externo a ser injetado(arquivo .img): ");
     scanf("%s", ext_path);
     printf("Nome de destino na imagem FAT16 (ex: COPIA.TXT): ");
     scanf("%s", disk_filename);
@@ -419,7 +416,23 @@ void insert_file(FAT16_Context *ctx) {
     entry.attributes = ATTR_ARCHIVE;
     entry.first_cluster_low = first_cluster;
     entry.file_size = file_size;
-    entry.creation_date = (26 << 9) | (6 << 5) | 18; // 18/06/2026
+    
+    // CORREÇÃO DA DATA E HORA NATIVAS DA FAT16:
+    time_t currentTime;
+    time(&currentTime);
+    struct tm *tm_info = localtime(&currentTime);
+
+    // Mapeia bits para Data (Bits 0-4: Dia, Bits 5-8: Mês, Bits 9-15: Ano desde 1980)
+    uint16_t ano_fat = (tm_info->tm_year + 1900 - 1980) << 9;
+    uint16_t mes_fat = (tm_info->tm_mon + 1) << 5;
+    uint16_t dia_fat = tm_info->tm_mday;
+    entry.creation_date = ano_fat | mes_fat | dia_fat;
+
+    // Mapeia bits para Hora (Bits 0-4: Segundos/2, Bits 5-10: Minutos, Bits 11-15: Hora)
+    uint16_t hora_fat = tm_info->tm_hour << 11;
+    uint16_t min_fat = tm_info->tm_min << 5;
+    uint16_t seg_fat = (tm_info->tm_sec / 2);
+    entry.creation_time = hora_fat | min_fat | seg_fat;
 
     fseek(ctx->disk_file, target_entry_offset, SEEK_SET);
     fwrite(&entry, sizeof(FAT16_DirEntry), 1, ctx->disk_file);
