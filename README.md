@@ -5,7 +5,8 @@
 
 ## Comandos para execução do código
 
-- `<comando>`
+- `gcc main.c -o main`
+- `./main`
 
 ## Explicação do Código
 
