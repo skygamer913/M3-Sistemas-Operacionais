@@ -8,7 +8,7 @@
 // Garante o alinhamento de 1 byte para as estruturas (Packed) em C puro
 #pragma pack(push, 1)
 
-// 1. Estrutura do Boot Record do FAT16
+// Estrutura do Boot Record do FAT16
 typedef struct {
     uint8_t bootstrap[3];
     char oem_name[8];
@@ -27,7 +27,7 @@ typedef struct {
     uint16_t boot_sector_signature;
 } FAT16_BootRecord;
 
-// 2. Estrutura de uma Entrada de Diretório do FAT16 (32 bytes)
+// Estrutura de uma Entrada de Diretório do FAT16
 typedef struct {
     char filename[8], ext[3];
     uint8_t attributes, reserved, creation_time_ms;
@@ -47,7 +47,7 @@ typedef struct {
 #define ATTR_ARCHIVE 0x20
 #define ATTR_LONG_NAME 0x0F
 
-// 3. Estrutura de Contexto para eliminar variáveis globais
+// Estrutura de Contexto para eliminar variáveis globais
 typedef struct {
     FILE *disk_file;
     FAT16_BootRecord boot_record;
