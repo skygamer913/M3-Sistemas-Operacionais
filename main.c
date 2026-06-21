@@ -278,7 +278,9 @@ void display_file_attributes(FAT16_Context *ctx) {
             // 4. Última Modificação
             uint16_t d_mod = entry.last_modified_date;
             uint16_t t_mod = entry.last_modified_time;
-            printf("  Últ. Modificação:  %02d/%02d/%04d às %02d:%02d:%02d\n", 
+            // Verifica Há Data de Modificação
+            if (d_mod <= d_cria) printf("  Últ. Modificação:  N/A\n");
+            else printf("  Últ. Modificação:  %02d/%02d/%04d às %02d:%02d:%02d\n", 
                    d_mod & 0x1F, (d_mod >> 5) & 0x0F, ((d_mod >> 9) & 0x7F) + 1980,
                    (t_mod >> 11) & 0x1F, (t_mod >> 5) & 0x3F, (t_mod & 0x1F) * 2);
 
@@ -338,7 +340,7 @@ void insert_file(FAT16_Context *ctx) {
     long target_entry_offset = -1;
     int i;
 
-    printf("Digite o caminho do arquivo externo a ser injetado(arquivo .img): ");
+    printf("Digite o caminho do arquivo externo a ser injetado: ");
     scanf("%s", ext_path);
     printf("Nome de destino na imagem FAT16 (ex: COPIA.TXT): ");
     scanf("%s", disk_filename);
@@ -372,7 +374,14 @@ void insert_file(FAT16_Context *ctx) {
     }
 
     uint32_t cluster_size = ctx->boot_record.sectors_per_cluster * ctx->boot_record.bytes_per_sector;
-    char *buffer = malloc(cluster_size);
+    // CORREÇÃO 1: Usa calloc para iniciar o buffer completamente zerado
+    char *buffer = calloc(1, cluster_size); 
+    if (!buffer) {
+        printf("Erro de alocação de memória.\n");
+        fclose(ext_file);
+        return;
+    }
+    
     uint16_t first_cluster = 0, prev_cluster = 0;
     uint32_t remaining = file_size;
 
@@ -396,7 +405,9 @@ void insert_file(FAT16_Context *ctx) {
             if (first_cluster == 0) first_cluster = free_cluster;
             if (prev_cluster != 0) write_fat_entry(ctx, prev_cluster, free_cluster);
 
+            // CORREÇÃO 2: Limpa explicitamente o buffer antes de cada leitura
             memset(buffer, 0, cluster_size);
+            
             uint32_t bytes_to_write = (remaining < cluster_size) ? remaining : cluster_size;
             fread(buffer, 1, bytes_to_write, ext_file);
 
@@ -417,18 +428,15 @@ void insert_file(FAT16_Context *ctx) {
     entry.first_cluster_low = first_cluster;
     entry.file_size = file_size;
     
-    // CORREÇÃO DA DATA E HORA NATIVAS DA FAT16:
     time_t currentTime;
     time(&currentTime);
     struct tm *tm_info = localtime(&currentTime);
 
-    // Mapeia bits para Data (Bits 0-4: Dia, Bits 5-8: Mês, Bits 9-15: Ano desde 1980)
     uint16_t ano_fat = (tm_info->tm_year + 1900 - 1980) << 9;
     uint16_t mes_fat = (tm_info->tm_mon + 1) << 5;
     uint16_t dia_fat = tm_info->tm_mday;
     entry.creation_date = ano_fat | mes_fat | dia_fat;
 
-    // Mapeia bits para Hora (Bits 0-4: Segundos/2, Bits 5-10: Minutos, Bits 11-15: Hora)
     uint16_t hora_fat = tm_info->tm_hour << 11;
     uint16_t min_fat = tm_info->tm_min << 5;
     uint16_t seg_fat = (tm_info->tm_sec / 2);
@@ -481,15 +489,16 @@ void delete_file(FAT16_Context *ctx) {
     printf("Arquivo não encontrado.\n");
 }
 
-int main(){
+int main() {
     FAT16_Context ctx;
     ctx.disk_file = NULL;
-
-    if (!init_filesystem(&ctx, "disco1.img")) {
-        return 1;
-    }
-
     int opcao;
+    char disco[100];
+
+    printf("Nome do disco:\n");
+    scanf("%s", disco);
+    
+    if (!init_filesystem(&ctx, disco)) return 1;
 
     do {
         printf("\n---- Menu ----\n");
