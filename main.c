@@ -240,7 +240,7 @@ void display_file_attributes(FAT16_Context *ctx) {
     char target_name[15], fat_name[8], fat_ext[3];
     int i;
 
-    printf("Digite o nome do arquivo: ");
+    printf("Digite o nome do arquivo para ver os atributos (ex: TEXTO2.TXT): ");
     scanf("%s", target_name);
 
     parse_to_fat_name(target_name, fat_name, fat_ext);
@@ -257,17 +257,41 @@ void display_file_attributes(FAT16_Context *ctx) {
         if (memcmp(entry.filename, fat_name, 8) == 0 && memcmp(entry.ext, fat_ext, 3) == 0) {
             found = 1;
             printf("\nAtributos de '%s':\n", target_name);
-            printf("  Somente Leitura:  %s\n", (entry.attributes & ATTR_READ_ONLY) ? "SIM" : "NÃO");
-            printf("  Oculto:           %s\n", (entry.attributes & ATTR_HIDDEN) ? "SIM" : "NÃO");
-            printf("  Sistema:          %s\n", (entry.attributes & ATTR_SYSTEM) ? "SIM" : "NÃO");
-            printf("  Arquivo (Archive):%s\n", (entry.attributes & ATTR_ARCHIVE) ? "SIM" : "NÃO");
-            printf("  Tamanho:          %u bytes\n", entry.file_size);
             
-            uint16_t d = entry.creation_date;
-            uint16_t t = entry.creation_time;
-            printf("  Data de Criação:  %02d/%02d/%04d\n", d & 0x1F, (d >> 5) & 0x0F, ((d >> 9) & 0x7F) + 1980);
-            printf("  Hora de Criação:  %02d:%02d:%02d\n", (t >> 11) & 0x1F, (t >> 5) & 0x3F, (t & 0x1F) * 2);
-            break;
+            // 1. Tipo do Arquivo
+            if (entry.attributes & ATTR_DIRECTORY) {
+                printf("  Tipo do Arquivo:   Diretório (<DIR>)\n");
+            } else {
+                printf("  Tipo do Arquivo:   Arquivo de Dados / Comum\n");
+            }
+
+            // 2. Atributos da FAT
+            printf("  Somente Leitura:   %s\n", (entry.attributes & ATTR_READ_ONLY) ? "SIM" : "NÃO");
+            printf("  Oculto:            %s\n", (entry.attributes & ATTR_HIDDEN) ? "SIM" : "NÃO");
+            printf("  Sistema:           %s\n", (entry.attributes & ATTR_SYSTEM) ? "SIM" : "NÃO");
+            printf("  Arquivo (Archive): %s\n", (entry.attributes & ATTR_ARCHIVE) ? "SIM" : "NÃO");
+            printf("  Tamanho:           %u bytes\n", entry.file_size);
+            
+            // 3. Data e Hora de Criação
+            uint16_t d_cria = entry.creation_date;
+            uint16_t t_cria = entry.creation_time;
+            printf("  Data de Criação:   %02d/%02d/%04d\n", d_cria & 0x1F, (d_cria >> 5) & 0x0F, ((d_cria >> 9) & 0x7F) + 1980);
+            printf("  Hora de Criação:   %02d:%02d:%02d\n", (t_cria >> 11) & 0x1F, (t_cria >> 5) & 0x3F, (t_cria & 0x1F) * 2);
+
+            // 4. Última Modificação
+            uint16_t d_mod = entry.last_modified_date;
+            uint16_t t_mod = entry.last_modified_time;
+            printf("  Últ. Modificação:  %02d/%02d/%04d às %02d:%02d:%02d\n", 
+                   d_mod & 0x1F, (d_mod >> 5) & 0x0F, ((d_mod >> 9) & 0x7F) + 1980,
+                   (t_mod >> 11) & 0x1F, (t_mod >> 5) & 0x3F, (t_mod & 0x1F) * 2);
+
+            // 5. Localização (Mapeia o Cluster e o endereço de início no arquivo binário)
+            if (entry.first_cluster_low == 0) {
+                printf("  Localização:       Diretório Raiz (Vazio)\n");
+            } else {
+                uint32_t offset_fisico = get_cluster_offset(ctx, entry.first_cluster_low);
+                printf("  Localização:       Cluster Inicial %u (Offset: 0x%08X)\n", entry.first_cluster_low, offset_fisico);
+            }
         }
     }
 
